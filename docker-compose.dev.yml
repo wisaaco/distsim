@@ -1,0 +1,15 @@
+# Development overrides — run backend/frontend locally, only infra in Docker
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: distsim
+      POSTGRES_USER: distsim
+      POSTGRES_PASSWORD: distsim_dev
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+
+volumes:
+  pgdata_dev:
