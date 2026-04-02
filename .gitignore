@@ -33,3 +33,5 @@ docker-compose.override.yml
 coverage/
 *.cover
 *.out
+backend/server
+backend/bin/
