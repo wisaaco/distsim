@@ -335,17 +335,24 @@ fi
 export PATH="$INSTALL_DIR/bin:$PATH"
 
 # ──────────────────────────────────────
-# Done
+# Auto-start
 # ──────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}  Installed successfully!${NC}"
 echo ""
-echo "  Quick start:"
+echo -e "${DIM}Starting DistSim...${NC}"
 echo ""
-echo -e "    ${BOLD}distsim start${NC}     Start the platform"
-echo -e "    ${BOLD}distsim dev${NC}       Start in dev mode (hot reload)"
+
+"$INSTALL_DIR/bin/distsim" start
+
+echo -e "  ${BOLD}Commands:${NC}"
 echo ""
-echo -e "    Then open: ${BOLD}http://localhost:3000${NC}"
+echo -e "    distsim stop        Stop the platform"
+echo -e "    distsim restart     Restart"
+echo -e "    distsim status      Check what's running"
+echo -e "    distsim logs        View logs"
+echo -e "    distsim dev         Dev mode (hot reload)"
+echo -e "    distsim uninstall   Remove completely"
 echo ""
 echo -e "  ${DIM}Restart your terminal or run:${NC}"
 echo -e "  ${DIM}export PATH=\"\$HOME/.distsim/bin:\$PATH\"${NC}"
