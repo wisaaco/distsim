@@ -134,6 +134,12 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	// Store the session.
 	sess := h.store.Create(req.Name, req.Template, networkID, subnet)
+	if sess == nil {
+		// Max sessions reached — clean up the network we just created.
+		h.docker.RemoveNetwork(ctx, networkID)
+		writeError(w, http.StatusTooManyRequests, "maximum number of concurrent sessions reached (10). Delete an existing session first.")
+		return
+	}
 	slog.Info("session created", "id", sess.ID, "name", sess.Name, "network", networkID)
 
 	// For "custom" template, just create the network — no machines.
@@ -271,19 +277,33 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove all containers first.
+	// 1. Revert and clean up all chaos events for this session.
+	if h.chaos != nil {
+		h.chaos.CleanupSession(ctx, id)
+	}
+
+	// 2. Close all terminal sessions for machines in this session.
+	if h.terminal != nil {
+		for _, m := range sess.Machines {
+			h.terminal.Close(m.ID)
+		}
+	}
+
+	// 3. Force-remove all containers.
 	for _, m := range sess.Machines {
 		if err := h.docker.RemoveContainer(ctx, m.ContainerID); err != nil {
 			slog.Error("failed to remove container", "container", m.ContainerID, "error", err)
 		}
 	}
 
-	// Remove the network.
+	// 4. Remove the network (retries once if containers were slow to detach).
 	if err := h.docker.RemoveNetwork(ctx, sess.NetworkID); err != nil {
-		slog.Error("failed to remove network", "network", sess.NetworkID, "error", err)
+		slog.Warn("network removal failed, retrying", "network", sess.NetworkID, "error", err)
+		// Containers may take a moment to detach. Wait and retry.
+		h.docker.RemoveNetwork(ctx, sess.NetworkID)
 	}
 
-	// Remove from store.
+	// 5. Remove from store.
 	if err := h.store.Delete(id); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete session from store")
 		return

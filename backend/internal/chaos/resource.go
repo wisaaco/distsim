@@ -58,17 +58,21 @@ func (e *Engine) injectMemoryStress(ctx context.Context, containerID string, par
 }
 
 // injectDiskFill fills disk space by writing a zero-filled file to /tmp.
-// Params: "size" (e.g. "500M").
+// Params: "size" (e.g. "500M"). Max 900MB to prevent host disk exhaustion.
 func (e *Engine) injectDiskFill(ctx context.Context, containerID string, params map[string]string) (undoCmd string, err error) {
 	size := params["size"]
 	if size == "" {
 		size = "100M"
 	}
 
-	// Parse the size to extract the numeric part for dd count.
-	// We expect formats like "500M" or "1G". Use fallocate if available,
-	// fall back to dd for maximum compatibility.
-	cmd := fmt.Sprintf("dd if=/dev/zero of=/tmp/distsim-fill bs=1M count=%s", stripUnit(size))
+	// Cap at 900MB to prevent host disk exhaustion.
+	numericSize := stripUnit(size)
+	var n int
+	if fmt.Sscanf(numericSize, "%d", &n); n > 900 {
+		numericSize = "900"
+	}
+
+	cmd := fmt.Sprintf("dd if=/dev/zero of=/tmp/distsim-fill bs=1M count=%s", numericSize)
 
 	_, exitCode, err := e.docker.ExecCommand(ctx, containerID, []string{"sh", "-c", cmd})
 	if err != nil {

@@ -215,6 +215,24 @@ func (e *Engine) RevertAll(ctx context.Context, sessionID string) error {
 	return firstErr
 }
 
+// CleanupSession reverts all active chaos events for a session and removes
+// ALL events (active + reverted) from memory. Call this when a session is deleted.
+func (e *Engine) CleanupSession(ctx context.Context, sessionID string) {
+	// Revert active events first.
+	_ = e.RevertAll(ctx, sessionID)
+
+	// Remove all events for this session from memory.
+	e.mu.Lock()
+	for id, event := range e.events {
+		if event.SessionID == sessionID {
+			delete(e.events, id)
+		}
+	}
+	e.mu.Unlock()
+
+	slog.Info("chaos events cleaned up for session", "session", sessionID)
+}
+
 // RevertAllSessions reverts all active chaos events across all sessions.
 // Called during server shutdown.
 func (e *Engine) RevertAllSessions(ctx context.Context) {

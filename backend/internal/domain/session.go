@@ -57,10 +57,18 @@ func (s *SessionStore) NextSubnet() string {
 	return subnet
 }
 
-// Create stores a new session. It generates a UUID and sets CreatedAt automatically.
+// MaxSessions is the maximum number of concurrent sessions allowed.
+// Prevents unbounded resource growth on the host.
+const MaxSessions = 10
+
+// Create stores a new session. Returns nil if the max session limit is reached.
 func (s *SessionStore) Create(name, template, networkID, subnet string) *Session {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if len(s.sessions) >= MaxSessions {
+		return nil
+	}
 
 	sess := &Session{
 		ID:          uuid.New().String(),
